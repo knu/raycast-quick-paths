@@ -14,6 +14,7 @@ import {
 } from "@raycast/api";
 import React, { useState, useEffect } from "react";
 import { readFile, writeFile, mkdir } from "fs/promises";
+import { homedir } from "os";
 import { dirname } from "path";
 import untildify from "untildify";
 import { parse } from "csv-parse/sync";
@@ -36,6 +37,35 @@ function detectDelimiter(content: string): string {
   return content.includes("\t") ? "\t" : ",";
 }
 
+function tildify(path: string): string {
+  const home = homedir();
+
+  if (path === home) {
+    return "~";
+  }
+
+  if (path.startsWith(`${home}/`)) {
+    return `~/${path.slice(home.length + 1)}`;
+  }
+
+  return path;
+}
+
+function createPathEntry(
+  slug: string,
+  description: string,
+  path: string,
+): PathEntry {
+  const normalizedPath = tildify(path);
+
+  return {
+    slug,
+    description,
+    path: normalizedPath,
+    expandedPath: untildify(normalizedPath),
+  };
+}
+
 function parseCSV(content: string): PathEntry[] {
   const delimiter = detectDelimiter(content);
   const records = parse(content, {
@@ -50,12 +80,7 @@ function parseCSV(content: string): PathEntry[] {
     if (record.length >= 3) {
       const [slug, description, path] = record;
 
-      entries.push({
-        slug,
-        description,
-        path,
-        expandedPath: untildify(path),
-      });
+      entries.push(createPathEntry(slug, description, path));
     }
   }
 
@@ -231,15 +256,10 @@ export default function Command() {
 
     if (originalSlug) {
       updatedEntries = entries.map((e) =>
-        e.slug === originalSlug
-          ? { slug, description, path, expandedPath: untildify(path) }
-          : e,
+        e.slug === originalSlug ? createPathEntry(slug, description, path) : e,
       );
     } else {
-      updatedEntries = [
-        ...entries,
-        { slug, description, path, expandedPath: untildify(path) },
-      ];
+      updatedEntries = [...entries, createPathEntry(slug, description, path)];
     }
 
     await saveEntries(csvPath, updatedEntries, fileContent);
