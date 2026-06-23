@@ -11,17 +11,14 @@ import {
   Icon,
   confirmAlert,
   Alert,
+  environment,
 } from "@raycast/api";
 import React, { useState, useEffect } from "react";
-import { readFile, writeFile, mkdir } from "fs/promises";
-import { homedir } from "os";
-import { dirname } from "path";
-import untildify from "untildify";
-import { parse } from "csv-parse/sync";
-import { stringify } from "csv-stringify/sync";
+import { execFile } from "child_process";
+import { join } from "path";
+import { promisify } from "util";
 
 interface Preferences {
-  csvFilePath: string;
   defaultExpandTilde: boolean;
   enterAction: "search" | "paste";
 }
@@ -30,76 +27,67 @@ interface PathEntry {
   slug: string;
   description: string;
   path: string;
-  expandedPath: string;
+  shellPath: string;
 }
 
-function detectDelimiter(content: string): string {
-  return content.includes("\t") ? "\t" : ",";
+interface QPathEntry {
+  abbr: string;
+  desc: string;
+  path: string;
+  shell_path: string;
+  source: string;
+  type: string;
 }
 
-function tildify(path: string): string {
-  const home = homedir();
+const execFileAsync = promisify(execFile);
+const qpathBinaryName = process.arch === "x64" ? "qpath-x64" : "qpath";
+const qpathPath = join(environment.assetsPath, qpathBinaryName);
 
-  if (path === home) {
-    return "~";
-  }
-
-  if (path.startsWith(`${home}/`)) {
-    return `~/${path.slice(home.length + 1)}`;
-  }
-
-  return path;
-}
-
-function createPathEntry(
-  slug: string,
-  description: string,
-  path: string,
-): PathEntry {
-  const normalizedPath = tildify(path);
-
+function createPathEntry(entry: QPathEntry): PathEntry {
   return {
-    slug,
-    description,
-    path: normalizedPath,
-    expandedPath: untildify(normalizedPath),
+    slug: entry.abbr,
+    description: entry.desc,
+    path: entry.path,
+    shellPath: entry.shell_path,
   };
 }
 
-function parseCSV(content: string): PathEntry[] {
-  const delimiter = detectDelimiter(content);
-  const records = parse(content, {
-    delimiter,
-    trim: true,
-    skip_empty_lines: true,
-    relax_column_count: true,
+async function runQPath(args: string[]): Promise<string> {
+  const { stdout } = await execFileAsync(qpathPath, args, {
+    maxBuffer: 1024 * 1024,
   });
-
-  const entries: PathEntry[] = [];
-  for (const record of records) {
-    if (record.length >= 3) {
-      const [slug, description, path] = record;
-
-      entries.push(createPathEntry(slug, description, path));
-    }
-  }
-
-  return entries;
+  return stdout;
 }
 
-async function saveEntries(
-  csvPath: string,
-  entries: PathEntry[],
-  content: string,
+async function listEntries(): Promise<PathEntry[]> {
+  const output = await runQPath(["ls", "--type", "d", "--format", "json"]);
+  const entries = JSON.parse(output) as QPathEntry[];
+  return entries.map(createPathEntry);
+}
+
+async function addEntry(
+  slug: string,
+  description: string,
+  path: string,
 ): Promise<void> {
-  const delimiter = detectDelimiter(content);
-  const records = entries.map((entry) => [
-    entry.slug,
-    entry.description,
-    entry.path,
+  await runQPath([
+    "add",
+    slug,
+    path,
+    "--desc",
+    description,
+    "--type",
+    "d",
+    "--overwrite",
   ]);
-  const output = stringify(records, { delimiter });
-  await writeFile(csvPath, output, "utf-8");
+}
+
+async function updateEntry(
+  slug: string,
+  description: string,
+  path: string,
+): Promise<void> {
+  await runQPath(["update", slug, path, "--desc", description, "--type", "d"]);
 }
 
 function EditEntryForm({
@@ -158,12 +146,11 @@ function EditEntryForm({
 }
 
 export default function Command() {
-  const { csvFilePath, defaultExpandTilde, enterAction } =
+  const { defaultExpandTilde, enterAction } =
     getPreferenceValues<Preferences>();
   const [entries, setEntries] = useState<PathEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [keepTilde, setKeepTilde] = useState(defaultExpandTilde);
-  const [fileContent, setFileContent] = useState("");
   const { push } = useNavigation();
 
   function createSearchAction(
@@ -203,37 +190,12 @@ export default function Command() {
 
   async function loadEntries() {
     try {
-      const csvPath = untildify(csvFilePath);
-      let content: string;
-
-      try {
-        content = await readFile(csvPath, "utf-8");
-      } catch (error) {
-        if (
-          error instanceof Error &&
-          "code" in error &&
-          error.code === "ENOENT"
-        ) {
-          await mkdir(dirname(csvPath), { recursive: true });
-          content = "";
-          await writeFile(csvPath, content, "utf-8");
-          await showToast({
-            style: Toast.Style.Success,
-            title: "Created empty catalog file",
-            message: csvPath,
-          });
-        } else {
-          throw error;
-        }
-      }
-
-      setFileContent(content);
-      const parsedEntries = parseCSV(content);
+      const parsedEntries = await listEntries();
       setEntries(parsedEntries);
     } catch (error) {
       await showToast({
         style: Toast.Style.Failure,
-        title: "Failed to load CSV/TSV",
+        title: "Failed to load paths",
         message: error instanceof Error ? error.message : "Unknown error",
       });
     } finally {
@@ -243,7 +205,7 @@ export default function Command() {
 
   useEffect(() => {
     loadEntries();
-  }, [csvFilePath]);
+  }, []);
 
   async function handleSaveEntry(
     slug: string,
@@ -251,18 +213,16 @@ export default function Command() {
     path: string,
     originalSlug?: string,
   ) {
-    const csvPath = untildify(csvFilePath);
-    let updatedEntries: PathEntry[];
-
     if (originalSlug) {
-      updatedEntries = entries.map((e) =>
-        e.slug === originalSlug ? createPathEntry(slug, description, path) : e,
-      );
+      await updateEntry(originalSlug, description, path);
+
+      if (originalSlug !== slug) {
+        await runQPath(["rename", originalSlug, slug]);
+      }
     } else {
-      updatedEntries = [...entries, createPathEntry(slug, description, path)];
+      await addEntry(slug, description, path);
     }
 
-    await saveEntries(csvPath, updatedEntries, fileContent);
     await loadEntries();
     await showToast({
       style: Toast.Style.Success,
@@ -281,29 +241,9 @@ export default function Command() {
         },
       })
     ) {
-      const csvPath = untildify(csvFilePath);
-      const updatedEntries = entries.filter((e) => e.slug !== slug);
-      await saveEntries(csvPath, updatedEntries, fileContent);
+      await runQPath(["rm", slug]);
       await loadEntries();
       await showToast({ style: Toast.Style.Success, title: "Entry deleted" });
-    }
-  }
-
-  async function handleMoveEntry(slug: string, direction: "up" | "down") {
-    const index = entries.findIndex((e) => e.slug === slug);
-    if (
-      (direction === "up" && index > 0) ||
-      (direction === "down" && index < entries.length - 1)
-    ) {
-      const newEntries = [...entries];
-      const targetIndex = direction === "up" ? index - 1 : index + 1;
-      [newEntries[index], newEntries[targetIndex]] = [
-        newEntries[targetIndex],
-        newEntries[index],
-      ];
-      const csvPath = untildify(csvFilePath);
-      await saveEntries(csvPath, newEntries, fileContent);
-      await loadEntries();
     }
   }
 
@@ -333,14 +273,14 @@ export default function Command() {
       />
       <List.Section title="Paths">
         {entries.map((entry) => {
-          const { slug, description, path, expandedPath } = entry;
-          const pathToUse = keepTilde ? path : expandedPath;
+          const { slug, description, path, shellPath } = entry;
+          const pathToCopy = keepTilde ? shellPath : path;
           return (
             <List.Item
               key={slug}
               title={slug}
               subtitle={description}
-              accessories={[{ text: pathToUse }]}
+              accessories={[{ text: pathToCopy }]}
               actions={
                 <ActionPanel>
                   <ActionPanel.Section>
@@ -352,14 +292,14 @@ export default function Command() {
                         )}
                         {createPasteAction(
                           { modifiers: ["shift"], key: "return" },
-                          pathToUse,
+                          pathToCopy,
                         )}
                       </>
                     ) : (
                       <>
                         {createPasteAction(
                           { modifiers: [], key: "return" },
-                          pathToUse,
+                          pathToCopy,
                         )}
                         {createSearchAction(
                           { modifiers: ["shift"], key: "return" },
@@ -368,13 +308,13 @@ export default function Command() {
                       </>
                     )}
                     <Action
-                      title="Toggle Tilde Expansion"
+                      title="Toggle Path Format"
                       shortcut={{ modifiers: [], key: "tab" }}
                       onAction={() => setKeepTilde(!keepTilde)}
                     />
                     <Action.CopyToClipboard
                       title="Copy to Clipboard"
-                      content={pathToUse}
+                      content={pathToCopy}
                       shortcut={{ modifiers: ["cmd"], key: "c" }}
                       onCopy={async () => {
                         await showToast({
@@ -384,17 +324,15 @@ export default function Command() {
                       }}
                     />
                     <Action.CopyToClipboard
-                      title={
-                        keepTilde ? "Copy Expanded" : "Copy with Tilde (~)"
-                      }
-                      content={keepTilde ? expandedPath : path}
+                      title={keepTilde ? "Copy Full Path" : "Copy Shell Path"}
+                      content={keepTilde ? path : shellPath}
                       shortcut={{ modifiers: ["cmd", "shift"], key: "c" }}
                       onCopy={async () => {
                         await showToast({
                           style: Toast.Style.Success,
                           title: keepTilde
-                            ? "Path copied (expanded)"
-                            : "Path copied (with ~)",
+                            ? "Path copied (full path)"
+                            : "Path copied (shell path)",
                         });
                       }}
                     />
@@ -440,23 +378,6 @@ export default function Command() {
                       style={Action.Style.Destructive}
                       shortcut={{ modifiers: ["cmd"], key: "backspace" }}
                       onAction={() => handleDeleteEntry(slug)}
-                    />
-                  </ActionPanel.Section>
-                  <ActionPanel.Section>
-                    <Action
-                      title="Move up"
-                      icon={Icon.ArrowUp}
-                      shortcut={{ modifiers: ["cmd", "shift"], key: "arrowUp" }}
-                      onAction={() => handleMoveEntry(slug, "up")}
-                    />
-                    <Action
-                      title="Move Down"
-                      icon={Icon.ArrowDown}
-                      shortcut={{
-                        modifiers: ["cmd", "shift"],
-                        key: "arrowDown",
-                      }}
-                      onAction={() => handleMoveEntry(slug, "down")}
                     />
                   </ActionPanel.Section>
                 </ActionPanel>

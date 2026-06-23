@@ -21,22 +21,13 @@
   ],
   "preferences": [
     {
-      "name": "csvFilePath",
-      "type": "textfield",
-      "required": false,
-      "title": "CSV File Path",
-      "description": "Path to CSV file with slug,description,path columns",
-      "default": "~/.config/raycast/quick-paths/paths.csv",
-      "placeholder": "~/.config/raycast/quick-paths/paths.csv"
-    },
-    {
       "name": "defaultExpandTilde",
       "type": "checkbox",
       "required": false,
       "title": "Default Path Format",
-      "description": "Keep tilde (~) by default instead of expanding to absolute path",
+      "description": "Use qpath shell_path by default instead of the full path",
       "default": true,
-      "label": "Keep tilde (~) notation"
+      "label": "Use shell path by default"
     },
     {
       "name": "enterAction",
@@ -59,10 +50,7 @@
   ],
   "dependencies": {
     "@raycast/api": "^1.103.9",
-    "@raycast/utils": "^2.2.2",
-    "csv-parse": "^6.1.0",
-    "csv-stringify": "^6.6.0",
-    "untildify": "^6.0.0"
+    "@raycast/utils": "^2.2.2"
   },
   "devDependencies": {
     "@raycast/eslint-config": "^2.1.1",
@@ -74,6 +62,7 @@
     "build": "ray build -e dist",
     "dev": "ray develop",
     "lint": "ray lint",
-    "push": "ray publish"
+    "push": "ray publish",
+    "update:qpath": "sh scripts/update-qpath-assets.sh"
   }
 }
