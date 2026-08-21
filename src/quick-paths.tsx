@@ -307,6 +307,12 @@ export default function Command() {
                         )}
                       </>
                     )}
+                    <Action.Open
+                      title="Open in Finder"
+                      target={path}
+                      icon={Icon.Finder}
+                      shortcut={{ modifiers: ["cmd"], key: "o" }}
+                    />
                     <Action
                       title="Toggle Path Format"
                       shortcut={{ modifiers: [], key: "tab" }}
