@@ -1,0 +1,102 @@
+name: Vicinae
+
+on:
+  pull_request:
+  push:
+    branches: ["**"]
+    tags: ["v[0-9]*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Check and package
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1  # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020  # v7.0.0
+        with:
+          node-version: "24.21.0"
+          package-manager-cache: false
+      - name: Validate release tag
+        if: startsWith(github.ref, 'refs/tags/')
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync } from "node:fs";
+          const { version } = JSON.parse(readFileSync("package.json", "utf8"));
+          const lock = JSON.parse(readFileSync("package-lock.json", "utf8"));
+          if (!/^\d+\.\d+\.\d+$/.test(version) || process.env.RELEASE_TAG !== `v${version}`) {
+            throw new Error("Release tag must be v<package.json version>, with a stable version");
+          }
+          if (lock.version !== version || lock.packages[""].version !== version) {
+            throw new Error("package-lock.json version must match package.json");
+          }
+          NODE
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm test
+      - run: npm run build:vicinae
+      - name: Package macOS extension
+        working-directory: dist
+        run: |
+          test -s quick-paths/package.json
+          test -s quick-paths/quick-paths.js
+          test -x quick-paths/assets/qpath
+          test -x quick-paths/assets/qpath-x64
+          tar -czf quick-paths-vicinae-macos.tar.gz quick-paths
+          sha256sum quick-paths-vicinae-macos.tar.gz > quick-paths-vicinae-macos.tar.gz.sha256
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a  # v7.0.1
+        with:
+          name: quick-paths-vicinae-macos
+          path: |
+            dist/quick-paths-vicinae-macos.tar.gz
+            dist/quick-paths-vicinae-macos.tar.gz.sha256
+          if-no-files-found: error
+          retention-days: 7
+
+  release:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write # Create the release and upload its assets.
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1  # v2.21.1
+        with:
+          egress-policy: audit
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c  # v8.0.1
+        with:
+          name: quick-paths-vicinae-macos
+          path: release
+      - name: Publish GitHub release
+        working-directory: release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          sha256sum --check quick-paths-vicinae-macos.tar.gz.sha256
+          gh release create "$RELEASE_TAG" \
+            --verify-tag \
+            --title "Quick Paths $RELEASE_TAG" \
+            --notes "macOS-only Vicinae extension. Extract the archive into ~/.local/share/vicinae/extensions/. See the README for installation and update instructions." \
+            quick-paths-vicinae-macos.tar.gz \
+            quick-paths-vicinae-macos.tar.gz.sha256
