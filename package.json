@@ -49,20 +49,21 @@
     }
   ],
   "dependencies": {
-    "@raycast/api": "^1.103.9",
-    "@raycast/utils": "^2.2.2"
+    "@raycast/api": "^1.103.9"
   },
   "devDependencies": {
     "@raycast/eslint-config": "^2.1.1",
     "@types/node": "^24.10.1",
+    "@vicinae/api": "^0.29.0",
     "eslint": "^9.39.1",
     "typescript": "^5.9.3"
   },
   "scripts": {
-    "build": "ray build -e dist",
-    "dev": "ray develop",
-    "lint": "ray lint",
-    "push": "ray publish",
+    "build": "vici build -o dist/quick-paths",
+    "dev": "vici develop",
+    "lint": "eslint src",
+    "typecheck": "tsc --noEmit",
+    "test": "node --experimental-test-module-mocks --test tests/*.test.mjs",
     "update:qpath": "sh scripts/update-qpath-assets.sh"
   }
 }

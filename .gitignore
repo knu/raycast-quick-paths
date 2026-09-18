@@ -6,5 +6,6 @@ dist/
 Thumbs.db
 
 raycast-env.d.ts
+vicinae-env.d.ts
 
 *.log

@@ -17,6 +17,7 @@ import React, { useState, useEffect } from "react";
 import { execFile } from "child_process";
 import { join } from "path";
 import { promisify } from "util";
+import { FileSearchView } from "./file-search-view";
 
 interface Preferences {
   defaultExpandTilde: boolean;
@@ -158,10 +159,9 @@ export default function Command() {
     entry: PathEntry,
   ) {
     return (
-      <Action.Open
+      <Action
         title="Search Files in Path"
-        target={`raycast://extensions/raycast/file-search/search-files?fallbackText=${encodeURIComponent(entry.path)}`}
-        application="com.raycast.macos"
+        onAction={() => push(<FileSearchView directory={entry.path} />)}
         icon={Icon.MagnifyingGlass}
         shortcut={shortcut}
       />
