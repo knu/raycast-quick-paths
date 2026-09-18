@@ -16,17 +16,19 @@ export async function searchFiles(
   if (!isAbsolute(directory) || !(await stat(directory)).isDirectory()) {
     throw new Error("Search path must be an existing absolute directory");
   }
-  let paths: string[];
-  if (!query.trim()) {
-    const names = await readdir(directory);
-    paths = names.sort().map((name) => join(directory, name));
-  } else {
+  const names = await readdir(directory);
+  const term = query.trim().normalize("NFC").toLocaleLowerCase();
+  let paths = names
+    .filter((name) => name.normalize("NFC").toLocaleLowerCase().includes(term))
+    .sort()
+    .map((name) => join(directory, name));
+  if (term) {
     const { stdout } = await execFileAsync(
       "/usr/bin/mdfind",
       ["-0", "-onlyin", directory, "-name", query],
       { signal, timeout: 15_000, maxBuffer: 8 * 1024 * 1024 },
     );
-    paths = stdout.split("\0").filter(Boolean);
+    paths = [...new Set([...paths, ...stdout.split("\0").filter(Boolean)])];
   }
   return paths.filter(
     (path) =>

@@ -59,7 +59,7 @@ export function FileSearchView({ directory }: { directory: string }) {
       searchBarPlaceholder="Search file names in this directory…"
       searchText={query}
       onSearchTextChange={setQuery}
-      filtering={false}
+      filtering={true}
       isLoading={isLoading}
       actions={<ActionPanel>{toggleHiddenAction}</ActionPanel>}
     >
@@ -67,7 +67,7 @@ export function FileSearchView({ directory }: { directory: string }) {
         title={emptyTitle}
         description={
           error ??
-          "Directory contents are shown before searching. Search results require Spotlight indexing."
+          "Filters file names in this directory and searches Spotlight-indexed subdirectories."
         }
       />
       <List.Section

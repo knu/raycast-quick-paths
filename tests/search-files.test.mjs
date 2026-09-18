@@ -56,6 +56,20 @@ test("paths and query text remain separate literal arguments", async () => {
   assert.ok(call.options.timeout > 0);
 });
 
+test("filename filtering retains visible files outside the Spotlight index", async () => {
+  output = "";
+  assert.deepEqual(await searchFiles(directory, "VISIBLE"), [
+    resolve(directory, "visible.txt"),
+  ]);
+  assert.deepEqual(await searchFiles(directory, "does-not-exist"), []);
+});
+
+test("indexed direct children appear only once", async () => {
+  const file = resolve(directory, "visible.txt");
+  output = `${file}\0`;
+  assert.deepEqual(await searchFiles(directory, "visible"), [file]);
+});
+
 test("missing, relative, and non-directory scopes fail before searching", async () => {
   const file = resolve(directory, "file.txt");
   await writeFile(file, "");
@@ -72,11 +86,13 @@ test("empty Spotlight results are an empty list", async () => {
 });
 
 test("hidden search results can be shown, including descendants of hidden directories", async () => {
-  const visible = resolve(directory, "visible.txt");
-  const hidden = resolve(directory, ".hidden", "file.txt");
+  const scope = resolve(directory, "indexed");
+  await mkdir(scope);
+  const visible = resolve(scope, "file.txt");
+  const hidden = resolve(scope, ".hidden", "file.txt");
   output = `${visible}\0${hidden}\0`;
-  assert.deepEqual(await searchFiles(directory, "file"), [visible]);
-  assert.deepEqual(await searchFiles(directory, "file", { showHidden: true }), [
+  assert.deepEqual(await searchFiles(scope, "file"), [visible]);
+  assert.deepEqual(await searchFiles(scope, "file", { showHidden: true }), [
     visible,
     hidden,
   ]);
