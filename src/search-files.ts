@@ -1,6 +1,6 @@
 import { execFile } from "node:child_process";
-import { stat } from "node:fs/promises";
-import { isAbsolute } from "node:path";
+import { readdir, stat } from "node:fs/promises";
+import { isAbsolute, join, relative, sep } from "node:path";
 import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
@@ -8,17 +8,31 @@ const execFileAsync = promisify(execFile);
 export async function searchFiles(
   directory: string,
   query: string,
-  signal?: AbortSignal,
+  {
+    signal,
+    showHidden = false,
+  }: { signal?: AbortSignal; showHidden?: boolean } = {},
 ): Promise<string[]> {
-  if (!query.trim()) return [];
   if (!isAbsolute(directory) || !(await stat(directory)).isDirectory()) {
     throw new Error("Search path must be an existing absolute directory");
   }
-
-  const { stdout } = await execFileAsync(
-    "/usr/bin/mdfind",
-    ["-0", "-onlyin", directory, "-name", query],
-    { signal, timeout: 15_000, maxBuffer: 8 * 1024 * 1024 },
+  let paths: string[];
+  if (!query.trim()) {
+    const names = await readdir(directory);
+    paths = names.sort().map((name) => join(directory, name));
+  } else {
+    const { stdout } = await execFileAsync(
+      "/usr/bin/mdfind",
+      ["-0", "-onlyin", directory, "-name", query],
+      { signal, timeout: 15_000, maxBuffer: 8 * 1024 * 1024 },
+    );
+    paths = stdout.split("\0").filter(Boolean);
+  }
+  return paths.filter(
+    (path) =>
+      showHidden ||
+      !relative(directory, path)
+        .split(sep)
+        .some((name) => name.startsWith(".")),
   );
-  return stdout.split("\0").filter(Boolean);
 }

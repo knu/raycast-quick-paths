@@ -72,7 +72,7 @@ Only directory entries are shown.
 4. Press Enter to search files or paste path (configurable in preferences)
 5. Press Shift+Enter for alternate action
 
-File search opens a view inside the extension and searches file names recursively within the selected directory using macOS Spotlight.  Enter a name to search; results are limited to 200 displayed items.  Files excluded from Spotlight indexing will not appear.  Open a result or reveal it in Finder from its actions.  This avoids relying on Vicinae's global file search, which does not scope searches to a directory passed as query text.
+File search opens a view inside the extension showing the selected directory's immediate contents.  Hidden files are hidden by default; use `Cmd+Shift+.` or the actions menu to show them.  Enter a name to search recursively using macOS Spotlight; results are limited to 200 displayed items.  Files excluded from Spotlight indexing appear in the initial directory listing but not in search results.  Open a result or reveal it in Finder from its actions.  This avoids relying on Vicinae's global file search, which does not scope searches to a directory passed as query text.
 
 ### Additional Actions
 
