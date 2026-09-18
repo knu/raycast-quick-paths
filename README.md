@@ -12,7 +12,7 @@ The screenshots below show the original Raycast version.
 
 - Choose from your predefined list of frequently-used paths
 - Search files or paste paths with configurable Enter key behavior (Enter/Shift+Enter)
-- Toggle shell path and full path output (TAB)
+- Toggle shell path and full path output (`Cmd+T`)
 - Copy to clipboard, edit, add, and delete paths
 
 ## Setup
@@ -68,7 +68,7 @@ Only directory entries are shown.
 
 1. Open Vicinae and search for "Quick Paths"
 2. Add paths using `Cmd+N` or search for existing paths
-3. Press TAB to toggle paste/copy output between qpath `shell_path` and full `path`
+3. Press `Cmd+T` to toggle paste/copy output between qpath `shell_path` and full `path`
 4. Press Enter to search files or paste path (configurable in preferences)
 5. Press Shift+Enter for alternate action
 

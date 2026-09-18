@@ -315,7 +315,7 @@ export default function Command() {
                     />
                     <Action
                       title="Toggle Path Format"
-                      shortcut={{ modifiers: [], key: "tab" }}
+                      shortcut={{ modifiers: ["cmd"], key: "t" }}
                       onAction={() => setKeepTilde(!keepTilde)}
                     />
                     <Action.CopyToClipboard
