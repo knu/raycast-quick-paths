@@ -59,8 +59,10 @@
     "typescript": "^5.9.3"
   },
   "scripts": {
-    "build": "vici build -o dist/quick-paths",
-    "dev": "vici develop",
+    "build": "ray build -e dist -o dist/raycast",
+    "build:vicinae": "vici build -o dist/quick-paths",
+    "dev": "ray develop",
+    "dev:vicinae": "vici develop",
     "lint": "eslint src",
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-test-module-mocks --test tests/*.test.mjs",

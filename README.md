@@ -21,7 +21,7 @@ Install [Vicinae](https://docs.vicinae.com/install/macos) on an Apple Silicon Ma
 
 ```sh
 npm ci
-npm run build
+npm run build:vicinae
 ```
 
 The complete extension is generated in `dist/quick-paths/`; building does not install it.  To install it:
@@ -31,7 +31,13 @@ mkdir -p ~/.local/share/vicinae/extensions
 cp -Rp dist/quick-paths ~/.local/share/vicinae/extensions/
 ```
 
-For development, `npm run dev` installs a development build and watches for changes.  `npm run lint`, `npm run typecheck`, and `npm test` run the checks.
+For Vicinae development, `npm run dev:vicinae` installs a development build and watches for changes.  `npm run lint`, `npm run typecheck`, and `npm test` run the checks.
+
+### Raycast build
+
+Run `npm run build` to generate a Raycast distribution build in `dist/raycast/`.  This uses the same source as `npm run build:vicinae`, which outputs to `dist/quick-paths/`.
+
+Run `npm run dev` to build and load the extension into Raycast and watch for changes.
 
 ### Distribution and updates
 
