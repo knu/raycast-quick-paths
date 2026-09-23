@@ -1,6 +1,6 @@
 # Quick Paths
 
-A Vicinae extension for macOS, for quickly accessing and inserting your favorite file paths from a searchable catalog.  It uses Vicinae's Raycast compatibility API.
+A Raycast and Vicinae extension for macOS, for quickly accessing and inserting your favorite file paths from a searchable catalog.  The Vicinae build uses its Raycast compatibility API.
 
 The screenshots below show the original Raycast version.
 
@@ -41,7 +41,38 @@ Run `npm run dev` to build and load the extension into Raycast and watch for cha
 
 ### Distribution and updates
 
-GitHub Actions checks and builds the Vicinae extension on branch pushes and pull requests.  To publish a macOS release, update `package.json` and `package-lock.json` to the same stable version, push the release commit, and wait for its CI to pass.  Then create and push a matching tag such as `v1.0.0`.  The tag workflow validates the version and reruns the checks before publishing a GitHub Release with `quick-paths-vicinae-macos.tar.gz` and its SHA-256 checksum.  Tags are shared across launcher targets; future Raycast builds can be added as separate assets to the same release.  An existing release is not overwritten; rerunning publication for an already published tag fails.
+GitHub Actions checks and builds both extensions on branch pushes and pull requests.  To publish a macOS release, update `package.json` and `package-lock.json` to the same stable version, push the release commit, and wait for its CI to pass.  Then create and push a matching tag such as `v1.0.1`.  The tag workflow validates the version and reruns the checks before publishing a GitHub Release with `quick-paths-raycast-macos.tar.gz`, `quick-paths-vicinae-macos.tar.gz`, and their SHA-256 checksums.  Tags are shared across launcher targets.  An existing release is not overwritten; rerunning publication for an already published tag fails.
+
+#### Raycast with mise
+
+Raycast archives are available starting with v1.0.1.  Add the following to `~/.config/mise/conf.d/raycast.toml`:
+
+```toml
+[tool_alias]
+raycast-quick-paths = "github:knu/raycast-quick-paths"
+
+[tools.raycast-quick-paths]
+version = "latest"
+minimum_release_age = "0s"
+asset_pattern = "quick-paths-raycast-macos.tar.gz"
+strip_components = 1
+bin_path = "."
+```
+
+The alias gives Raycast its own installation directory, separate from the Vicinae archive installed with `github:knu/raycast-quick-paths`.  Install and link it:
+
+```sh
+mise install raycast-quick-paths
+mkdir -p ~/.config/raycast/extensions
+ln -s ../../../.local/share/mise/installs/raycast-quick-paths/latest \
+  ~/.config/raycast/extensions/quick-paths
+```
+
+If `extensions/quick-paths` already exists, move it outside `extensions` as a backup before creating the link.  The link assumes mise's default data directory; use the corresponding install path if `MISE_DATA_DIR` is customized.  Run `mise upgrade raycast-quick-paths` for updates; the link follows mise's `latest` version.  Restart Raycast and check that Quick Paths appears and runs after installation.  Do not run `npm run dev` against this link: development builds write into the installed extension directory.
+
+For a manual installation, extract `quick-paths-raycast-macos.tar.gz` outside the extensions directory and link its `raycast/` directory as `~/.config/raycast/extensions/quick-paths`.
+
+#### Vicinae archive
 
 Download the release archive and extract it using the instructions below, substituting `quick-paths-vicinae-macos.tar.gz` for `quick-paths.tar.gz`.
 
