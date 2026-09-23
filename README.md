@@ -59,6 +59,15 @@ strip_components = 1
 bin_path = "."
 ```
 
+Raycast needs a one-time registration on each Mac; placing a symlink in the extensions directory does not register the extension.  If you already created the symlink, move it aside before running `npm run dev` so the development build does not overwrite mise's distribution files.  Before creating the link, run these commands from the source checkout:
+
+```sh
+npm ci
+npm run dev
+```
+
+Confirm that Quick Paths appears in Raycast's Extensions list, then stop development with Ctrl-C.  Registration persists after development stops.  Move the generated `~/.config/raycast/extensions/quick-paths` directory outside `extensions` as a backup before replacing it with the link below.
+
 The alias gives Raycast its own installation directory, separate from the Vicinae archive installed with `github:knu/raycast-quick-paths`.  Install and link it:
 
 ```sh
@@ -68,7 +77,7 @@ ln -s ../../../.local/share/mise/installs/raycast-quick-paths/latest \
   ~/.config/raycast/extensions/quick-paths
 ```
 
-If `extensions/quick-paths` already exists, move it outside `extensions` as a backup before creating the link.  The link assumes mise's default data directory; use the corresponding install path if `MISE_DATA_DIR` is customized.  Run `mise upgrade raycast-quick-paths` for updates; the link follows mise's `latest` version.  Restart Raycast and check that Quick Paths appears and runs after installation.  Do not run `npm run dev` against this link: development builds write into the installed extension directory.
+If `extensions/quick-paths` already exists, move it outside `extensions` as a backup before creating the link.  The link assumes mise's default data directory; use the corresponding install path if `MISE_DATA_DIR` is customized.  Run `mise upgrade raycast-quick-paths` for updates; the link follows mise's `latest` version.  Open Quick Paths and check that it runs after installation.  Do not run `npm run dev` against this link: development builds write into the installed extension directory.
 
 For a manual installation, extract `quick-paths-raycast-macos.tar.gz` outside the extensions directory and link its `raycast/` directory as `~/.config/raycast/extensions/quick-paths`.
 
