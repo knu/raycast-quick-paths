@@ -1,0 +1,39 @@
+queue_rules:
+  - name: dependency-updates
+    batch_size: 5
+    batch_max_wait_time: 1 min
+    checks_timeout: auto
+    merge_method: merge-batch
+    queue_conditions:
+      - base = main
+      - author = dependabot[bot]
+      - -draft
+      - -conflict
+      - "#approved-reviews-by >= 1"
+      - check-success = Check and package
+    merge_conditions:
+      - "#approved-reviews-by >= 1"
+      - check-success = Check and package
+
+merge_protections:
+  - name: dependency-review
+    if:
+      - base = main
+      - author = dependabot[bot]
+    success_conditions:
+      - "#approved-reviews-by >= 1"
+  - name: main-ci
+    if:
+      - base = main
+    success_conditions:
+      - check-success = Check and package
+
+merge_protections_settings:
+  auto_merge_conditions:
+    - base = main
+    - author = dependabot[bot]
+    - -draft
+    - -conflict
+    - "#approved-reviews-by >= 1"
+    - check-success = Check and package
+  reporting_method: check-runs
